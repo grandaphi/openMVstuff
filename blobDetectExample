@@ -1,0 +1,53 @@
+# Single Color RGB565 Blob Tracking Example
+#
+# This example shows off single color RGB565 tracking using the OpenMV Cam.
+#QVGA is 320x*240y in this instance
+#therefore the centre of the field of view should be (80,60)
+
+
+import sensor, image, time
+from pyb import Servo
+
+s1 = Servo(1) # P7
+threshold_index = 2 # 0 for red, 1 for green, 2 for blue
+
+errorX = 0
+centreX=80
+xPulseWidth=1500
+
+# Color Tracking Thresholds (L Min, L Max, A Min, A Max, B Min, B Max)
+# The below thresholds track in general red/green/blue things. You may wish to tune them...
+thresholds = [(30, 100, 15, 127, 15, 127), # generic_red_thresholds
+              (30, 100, -64, -8, -32, 32), # generic_green_thresholds
+              (52, 72, -34, -12, -45, -1)] # generic_blue_thresholds
+
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time = 2000)
+sensor.set_auto_gain(False) # must be turned off for color tracking
+sensor.set_auto_whitebal(False) # must be turned off for color tracking
+clock = time.clock()
+
+# Only blobs that with more pixels than "pixel_threshold" and more area than "area_threshold" are
+# returned by "find_blobs" below. Change "pixels_threshold" and "area_threshold" if you change the
+# camera resolution. "merge=True" merges all overlapping blobs in the image.
+
+while(True):
+    clock.tick()
+    img = sensor.snapshot()
+    for blob in img.find_blobs([thresholds[threshold_index]], pixels_threshold=200, area_threshold=200, merge=True):
+        img.draw_rectangle(blob.rect())
+        img.draw_cross(blob.cx(), blob.cy())
+        errorX=160-blob.cx()
+        print ("centroid X:", blob.cx())
+    print ("error X:",errorX)
+    #TODO:
+    if (errorX < 50):
+        xPulseWidth-=25
+    elif errorX > -50 :
+        xPulseWidth+=25
+    #TODO: constrain max/min pulse width
+    s1.pulse_width(xPulseWidth)
+    print ("Sensor width:", sensor.width())
+    print ("Sensor depth:", sensor.height())
